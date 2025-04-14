@@ -536,83 +536,127 @@ def check_ghost_collision(ghost1, ghost2):
         and level[ghost1_grid_y][ghost1_grid_x] in [1, 2, 9]
     )
 
+def game_over_menu():
+    menu_font = pygame.font.Font("freesansbold.ttf", 64)
+    option_font = pygame.font.Font("freesansbold.ttf", 36)
+
+    selecting = True
+    while selecting:
+        screen.fill("black")
+
+        # Hiển thị chữ GAME OVER
+        game_over_text = menu_font.render("GAME OVER", True, "red")
+        screen.blit(game_over_text, (WIDTH // 2 - 200, HEIGHT // 2 - 150))
+
+        # Hiển thị lựa chọn R hoặc Q
+        play_again_text = option_font.render("Press R to Play Again", True, "white")
+        quit_text = option_font.render("Press Q to Quit", True, "white")
+        screen.blit(play_again_text, (WIDTH // 2 - 220, HEIGHT // 2))
+        screen.blit(quit_text, (WIDTH // 2 - 170, HEIGHT // 2 + 60))
+
+        pygame.display.flip()
+
+        # Bắt sự kiện
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    return True  # Chơi lại
+                elif event.key == pygame.K_q:
+                    return False  # Thoát game
+
 
 # Initialize game objects
 player = Player()
 ghosts = [Pink_ghost(), Blue_ghost(), Orange_ghost(), RedGhost()]
 
 # Main game loop
-run = True
-game_over = False
-start_time = time.time()
+def run_game():
+    global counter, count, flicker
 
-while run:
-    timer.tick(fps)
-    if counter < 19:
-        counter += 1
-        if counter > 3:
-            flicker = False
-    else:
-        counter = 0
-        flicker = True
+    # Reset variables
+    counter = 0
+    count = 0
+    flicker = False
+    player = Player()
+    ghosts = [Pink_ghost(), Blue_ghost(), Orange_ghost(), RedGhost()]
+    start_time = time.time()
+    run = True
+    game_over = False
 
-    screen.fill("black")
-    draw_board()
+    while run:
+        timer.tick(fps)
 
-    # Update and draw player
-    player.move()
-    player.draw_player()
+        if counter < 19:
+            counter += 1
+            if counter > 3:
+                flicker = False
+        else:
+            counter = 0
+            flicker = True
 
-    # Update and draw ghosts
-    for ghost in ghosts:
-        ghost.draw_ghost()
+        screen.fill("black")
+        draw_board()
 
-    if count >= 0:
-        ghosts[0].move()
-    if count >= 50:
-        ghosts[1].move()
-    if count >= 100:
-        ghosts[2].move()
-    if count >= 150:
-        ghosts[3].move()
-    count += 1
+        # Player
+        player.move()
+        player.draw_player()
 
-    # Calculate and display duration
-    duration = calculate_game_duration(start_time)
-    display_duration(duration)
+        # Ghosts
+        for ghost in ghosts:
+            ghost.draw_ghost()
 
-    # Check player-ghost collisions
-    for ghost in ghosts:
-        if check_collision(player, ghost):
-            game_over = True
+        if count >= 0:
+            ghosts[0].move()
+        if count >= 50:
+            ghosts[1].move()
+        if count >= 100:
+            ghosts[2].move()
+        if count >= 150:
+            ghosts[3].move()
+        count += 1
 
-    # Trong vòng lặp chính của trò chơi, sau khi di chuyển tất cả các con ma
-    # Kiểm tra va chạm giữa các con ma
-    for i in range(len(ghosts)):
-        for j in range(i + 1, len(ghosts)):
-            if check_ghost_collision(ghosts[i], ghosts[j]):
-                # Dịch chuyển con ma thứ hai
-                ghosts[j].teleport()
+        # Time display
+        duration = calculate_game_duration(start_time)
+        display_duration(duration)
 
-    # Handle game events
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+        # Check collision with ghosts
+        for ghost in ghosts:
+            if check_collision(player, ghost):
+                game_over = True
+
+        # Check ghost-to-ghost teleport
+        for i in range(len(ghosts)):
+            for j in range(i + 1, len(ghosts)):
+                if check_ghost_collision(ghosts[i], ghosts[j]):
+                    ghosts[j].teleport()
+
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_w:
+                    player.direction = "up"
+                elif event.key == pygame.K_s:
+                    player.direction = "down"
+                elif event.key == pygame.K_a:
+                    player.direction = "left"
+                elif event.key == pygame.K_d:
+                    player.direction = "right"
+
+        if game_over:
+            display_game_over()
+            if game_over_menu():
+                run_game()  # Restart the game cleanly
             run = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_w:
-                player.direction = "up"
-            elif event.key == pygame.K_s:
-                player.direction = "down"
-            elif event.key == pygame.K_a:
-                player.direction = "left"
-            elif event.key == pygame.K_d:
-                player.direction = "right"
 
-    # Handle game over
-    if game_over:
-        display_game_over()
-        run = False
+        pygame.display.flip()
 
-    pygame.display.flip()
+if __name__ == "__main__":
+    run_game()
+    pygame.quit()
 
-pygame.quit()
