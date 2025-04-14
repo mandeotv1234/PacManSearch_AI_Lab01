@@ -570,12 +570,12 @@ def game_over_menu():
 
 
 # Initialize game objects
-player = Player()
-ghosts = [Pink_ghost(), Blue_ghost(), Orange_ghost(), RedGhost()]
+# player = Player()
+# ghosts = [Pink_ghost(), Blue_ghost(), Orange_ghost(), RedGhost()]
 
 # Main game loop
 def run_game():
-    global counter, count, flicker
+    global counter, count, flicker,player, ghosts, start_time, run, game_over
 
     # Reset variables
     counter = 0
@@ -659,4 +659,3 @@ def run_game():
 if __name__ == "__main__":
     run_game()
     pygame.quit()
-
