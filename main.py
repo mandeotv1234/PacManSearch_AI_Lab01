@@ -7,6 +7,7 @@ import random
 import heapq
 
 pygame.init()
+pygame.mixer.init()  # Khởi tạo mixer cho âm thanh
 
 WIDTH = 900
 HEIGHT = 950
@@ -21,6 +22,13 @@ level = boards
 counter = 0
 count = 0
 flicker = False
+
+# Tải nhạc nền
+try:
+    background_music = pygame.mixer.music.load("sound/background.mp3")
+    pygame.mixer.music.set_volume(0.5)  # 50% âm lượng
+except:
+    print("Không thể tải file nhạc nền. Đảm bảo file MP3 đã được thêm vào thư mục 'sound'.")
 
 player_images_right = []
 for i in range(1, 5):
@@ -564,6 +572,11 @@ def game_over_menu():
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
+                    # Đảm bảo nhạc đã dừng trước khi chơi lại
+                    try:
+                        pygame.mixer.music.stop()
+                    except:
+                        pass
                     return True  # Chơi lại
                 elif event.key == pygame.K_q:
                     return False  # Thoát game
@@ -586,6 +599,13 @@ def run_game():
     start_time = time.time()
     run = True
     game_over = False
+
+     # Phát nhạc nền
+    try:
+        pygame.mixer.music.play(-1)  # -1 để lặp vô hạn
+    except:
+        pass
+
 
     while run:
         timer.tick(fps)
@@ -649,12 +669,22 @@ def run_game():
                     player.direction = "right"
 
         if game_over:
+             # Dừng nhạc khi game over
+            try:
+                pygame.mixer.music.stop()
+            except:
+                pass
             display_game_over()
             if game_over_menu():
                 run_game()  # Restart the game cleanly
             run = False
 
         pygame.display.flip()
+      # Đảm bảo dừng nhạc khi kết thúc game
+    try:
+        pygame.mixer.music.stop()
+    except:
+        pass
 
 if __name__ == "__main__":
     run_game()
