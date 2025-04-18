@@ -8,6 +8,7 @@ import heapq
 
 pygame.init()
 pygame.mixer.init()  # Khởi tạo mixer cho âm thanh
+move_sound = pygame.mixer.Sound("sound/tick.mp3")
 
 WIDTH = 900
 HEIGHT = 950
@@ -661,12 +662,17 @@ def run_game():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_w:
                     player.direction = "up"
+                    move_sound.play()
                 elif event.key == pygame.K_s:
                     player.direction = "down"
+                    move_sound.play()
                 elif event.key == pygame.K_a:
                     player.direction = "left"
+                    move_sound.play()
                 elif event.key == pygame.K_d:
                     player.direction = "right"
+                    move_sound.play()
+
 
         if game_over:
              # Dừng nhạc khi game over
