@@ -11,8 +11,8 @@ pygame.init()
 pygame.mixer.init()  # Khởi tạo mixer cho âm thanh
 move_sound = pygame.mixer.Sound("sound/tick.mp3")
 
-WIDTH = 900
-HEIGHT = 950
+WIDTH = 1100
+HEIGHT = 900
 TILE_WIDTH = WIDTH // 30
 TILE_HEIGHT = (HEIGHT - 50) // 32
 
@@ -172,24 +172,31 @@ class Ghost:
 
 
 def display_statistics():
-        stat_font = pygame.font.Font("freesansbold.ttf", 24)
-        ghosts_names = ["Pink (DFS)", "Blue (BFS)", "Orange (UCS)", "Red (A*)"]
-        start_y = HEIGHT // 2 + 150
+    stat_font = pygame.font.Font("freesansbold.ttf", 24)
+    ghosts_names = ["Pink (DFS)", "Blue (BFS)", "Orange (UCS)", "Red (A*)"]
+    start_y = HEIGHT // 2 + 150
 
-        for i, ghost in enumerate(ghosts):
-            try:
-                text = f"{ghosts_names[i]} | Time: {round(ghost.search_time, 4)}s | Memory: {round(ghost.memory_usage, 2)}KB | Expanded: {ghost.expanded_nodes}"
-            except AttributeError:
-                text = f"{ghosts_names[i]} | No Data"
-            
-            stat_text = stat_font.render(text, True, "white")
-            screen.blit(stat_text, (WIDTH//2 - 400, start_y + i*30))
+    for i, ghost in enumerate(ghosts):
+        try:
+            text = (f"{ghosts_names[i]} | "
+                    f"Total Time: {round(ghost.total_search_time, 4)}s | "
+                    f"Total Memory: {round(ghost.total_memory_usage, 2)}KB | "
+                    f"Total Expanded: {ghost.total_expanded_nodes}")
+        except AttributeError:
+            text = f"{ghosts_names[i]} | No Data"
+        
+        stat_text = stat_font.render(text, True, "white")
+        screen.blit(stat_text, (WIDTH//2 - 400, start_y + i*30))
 
 
 
 class Pink_ghost(Ghost):
     def __init__(self):
         super().__init__("ghost_images/pink.png", 4)
+        self.total_search_time = 0
+        self.total_memory_usage = 0
+        self.total_expanded_nodes = 0
+
 
     def set_initial_position(self):
         x = len(level[0]) // 2 + 2
@@ -220,6 +227,10 @@ class Pink_ghost(Ghost):
         self.search_time = end_time - start_time
         self.memory_usage = peak / 1024  # in KB
         self.expanded_nodes = expanded
+         # Cộng dồn vô tổng
+        self.total_search_time += self.search_time
+        self.total_memory_usage += self.memory_usage
+        self.total_expanded_nodes += expanded
 
         return path
     
@@ -251,6 +262,10 @@ class Pink_ghost(Ghost):
 class Blue_ghost(Ghost):
     def __init__(self):
         super().__init__("ghost_images/blue.png", 3)
+        self.total_search_time = 0
+        self.total_memory_usage = 0
+        self.total_expanded_nodes = 0
+
 
     def set_initial_position(self):
         x = len(level[0]) // 2 - 3
@@ -281,7 +296,10 @@ class Blue_ghost(Ghost):
         self.search_time = end_time - start_time
         self.memory_usage = peak / 1024  # in KB
         self.expanded_nodes = expanded
-
+         # Cộng dồn vô tổng
+        self.total_search_time += self.search_time
+        self.total_memory_usage += self.memory_usage
+        self.total_expanded_nodes += expanded
         return path
 
     
@@ -313,6 +331,9 @@ class Blue_ghost(Ghost):
 class Orange_ghost(Ghost):
     def __init__(self):
         super().__init__("ghost_images/orange.png", 3)
+        self.total_search_time = 0
+        self.total_memory_usage = 0
+        self.total_expanded_nodes = 0
 
     def set_initial_position(self):
         x = len(level[0]) // 2 - 3
@@ -343,6 +364,11 @@ class Orange_ghost(Ghost):
         self.search_time = end_time - start_time
         self.memory_usage = peak / 1024  # KB
         self.expanded_nodes = expanded
+
+         # Cộng dồn vô tổng
+        self.total_search_time += self.search_time
+        self.total_memory_usage += self.memory_usage
+        self.total_expanded_nodes += expanded
 
         return path
 
@@ -383,6 +409,9 @@ class Orange_ghost(Ghost):
 class RedGhost(Ghost):
     def __init__(self):
         super().__init__("ghost_images/red.png", 3)
+        self.total_search_time = 0
+        self.total_memory_usage = 0
+        self.total_expanded_nodes = 0
 
     def set_initial_position(self):
         x = len(level[0]) // 2 + 2
@@ -416,6 +445,11 @@ class RedGhost(Ghost):
         self.search_time = end_time - start_time
         self.memory_usage = peak / 1024
         self.expanded_nodes = expanded
+
+         # Cộng dồn vô tổng
+        self.total_search_time += self.search_time
+        self.total_memory_usage += self.memory_usage
+        self.total_expanded_nodes += expanded
 
         return path
 
@@ -490,6 +524,12 @@ class Player:
         elif self.direction == "down":
             screen.blit(player_images_down[counter // 5], (self.x, self.y))
 
+    def reset_position(self):
+        self.x = starting_x
+        self.y = starting_y
+        self.direction = None  # hoặc "left" / "up" gì tùy
+        self.rect.topleft = (self.x, self.y)
+
     def move(self):
         if self.direction == "up":
             self.y -= self.speed
@@ -525,10 +565,80 @@ class Player:
 
 
 def draw_board():
+    num1 = (HEIGHT - 50) // 32
+    num2 = WIDTH // 30
     for i in range(len(level)):
         for j in range(len(level[i])):
-            if level[i][j] in [3, 4, 5, 6, 7, 8, 9]:
-                pygame.draw.rect(screen, (0, 0, 255), (j*TILE_WIDTH, i*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT), 1)
+            if level[i][j] == 3:
+                pygame.draw.line(
+                    screen,
+                    color,
+                    (j * num2 + (0.5 * num2), i * num1),
+                    (j * num2 + (0.5 * num2), i * num1 + num1),
+                    3,
+                )
+            if level[i][j] == 4:
+                pygame.draw.line(
+                    screen,
+                    color,
+                    (j * num2, i * num1 + (0.5 * num1)),
+                    (j * num2 + num2, i * num1 + (0.5 * num1)),
+                    3,
+                )
+            if level[i][j] == 5:
+                pygame.draw.arc(
+                    screen,
+                    color,
+                    [
+                        (j * num2 - (num2 * 0.4)) - 2,
+                        (i * num1 + (0.5 * num1)),
+                        num2,
+                        num1,
+                    ],
+                    0,
+                    PI / 2,
+                    3,
+                )
+            if level[i][j] == 6:
+                pygame.draw.arc(
+                    screen,
+                    color,
+                    [(j * num2 + (num2 * 0.5)), (i * num1 + (0.5 * num1)), num2, num1],
+                    PI / 2,
+                    PI,
+                    3,
+                )
+            if level[i][j] == 7:
+                pygame.draw.arc(
+                    screen,
+                    color,
+                    [(j * num2 + (num2 * 0.5)), (i * num1 - (0.4 * num1)), num2, num1],
+                    PI,
+                    3 * PI / 2,
+                    3,
+                )
+            if level[i][j] == 8:
+                pygame.draw.arc(
+                    screen,
+                    color,
+                    [
+                        (j * num2 - (num2 * 0.4)) - 2,
+                        (i * num1 - (0.4 * num1)),
+                        num2,
+                        num1,
+                    ],
+                    3 * PI / 2,
+                    2 * PI,
+                    3,
+                )
+            if level[i][j] == 9:
+                pygame.draw.line(
+                    screen,
+                    "white",
+                    (j * num2, i * num1 + (0.5 * num1)),
+                    (j * num2 + num2, i * num1 + (0.5 * num1)),
+                    3,
+                )
 
 
 def check_collision(player, ghost):
@@ -551,11 +661,21 @@ def display_game_over():
 
 
 def display_duration(duration):
-    time_font = pygame.font.Font("freesansbold.ttf", 60)
+    time_font = pygame.font.Font("freesansbold.ttf", 28)
     duration_text = time_font.render(
         f"Time: {round(float(duration), 2)}s", True, "red"
     )
-    screen.blit(duration_text, (WIDTH//2 - 100, 50))  # Center top
+    screen.blit(duration_text, (WIDTH // 2 - 200, 60))  # bên trái Score
+
+def display_score(score):
+    score_font = pygame.font.Font("freesansbold.ttf", 28)
+    score_text = score_font.render(f"Score: {score}", True, "yellow")
+    screen.blit(score_text, (WIDTH // 2 - 20, 60))  # giữa
+
+def display_lives(lives):
+    lives_font = pygame.font.Font("freesansbold.ttf", 28)
+    lives_text = lives_font.render(f"Lives: {lives}", True, "white")
+    screen.blit(lives_text, (WIDTH // 2 + 160, 60))  # bên phải Score
 
 
 
@@ -614,11 +734,13 @@ def main_menu():
         quit_text = option_font.render("Press Q to Quit", True, "white")
         longest_time = load_longest_time()
         longest_text = option_font.render(f"Longest Time: {round(longest_time,2)}s", True, "white")
-
+        highes_score=load_highest_score()
+        highest_text = option_font.render(f"Highest Score: {highes_score}", True, "white")
         screen.blit(title_text, (WIDTH // 2 - 200, HEIGHT // 2 - 200))
         screen.blit(start_text, (WIDTH // 2 - 150, HEIGHT // 2))
         screen.blit(quit_text, (WIDTH // 2 - 150, HEIGHT // 2 + 60))
         screen.blit(longest_text, (WIDTH // 2 - 200, HEIGHT // 2 + 140))
+        screen.blit(highest_text, (WIDTH // 2 - 200, HEIGHT // 2 + 180))
 
         pygame.display.flip()
 
@@ -630,12 +752,33 @@ def main_menu():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_s:
                     selecting = False  # Start game
+                    run_game()
                 elif event.key == pygame.K_q:
                     pygame.quit()
                     exit()
 
+def pause_screen(lives):
+    paused = True
+    pause_font = pygame.font.Font("freesansbold.ttf", 40)
+    text = pause_font.render(f"Lost a life! Lives left: {lives}", True, "white")
+    subtext = pause_font.render("Press SPACE to continue", True, "yellow")
 
-def game_over_menu():
+    while paused:
+        screen.fill("black")
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - 60))
+        screen.blit(subtext, (WIDTH // 2 - subtext.get_width() // 2, HEIGHT // 2 + 10))
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    paused = False
+
+
+def game_over_menu(score, play_time):
     menu_font = pygame.font.Font("freesansbold.ttf", 64)
     option_font = pygame.font.Font("freesansbold.ttf", 36)
 
@@ -643,15 +786,27 @@ def game_over_menu():
     while selecting:
         screen.fill("darkblue")
 
+      
         # Hiển thị chữ GAME OVER
         game_over_text = menu_font.render("GAME OVER", True, "red")
-        screen.blit(game_over_text, (WIDTH // 2 - 200, HEIGHT // 2 - 150))
+        screen.blit(game_over_text, (WIDTH // 2 - 200, HEIGHT // 2 - 250))
 
-        # Hiển thị lựa chọn R hoặc Q
+        # Hiển thị Score và Time
+        score_text = option_font.render(f"Score: {score}", True, "yellow")
+        time_text = option_font.render(f"Time: {play_time:.2f} seconds", True, "yellow")
+        screen.blit(score_text, (WIDTH // 2 - 100, HEIGHT // 2 - 180))
+        screen.blit(time_text, (WIDTH // 2 - 100, HEIGHT // 2 - 130))
+
+        # Hiển thị lựa chọn
         play_again_text = option_font.render("Press R to Play Again", True, "white")
+        menu_text = option_font.render("Press M to Main Menu", True, "white")
         quit_text = option_font.render("Press Q to Quit", True, "white")
-        screen.blit(play_again_text, (WIDTH // 2 - 220, HEIGHT // 2))
-        screen.blit(quit_text, (WIDTH // 2 - 170, HEIGHT // 2 + 60))
+
+        screen.blit(play_again_text, (WIDTH // 2 - 180, HEIGHT // 2 - 50))
+        screen.blit(menu_text, (WIDTH // 2 - 180, HEIGHT // 2 + 10))
+        screen.blit(quit_text, (WIDTH // 2 - 140, HEIGHT // 2 + 70))
+
+
         display_statistics()
 
         pygame.display.flip()
@@ -672,6 +827,13 @@ def game_over_menu():
                     return True  # Chơi lại
                 elif event.key == pygame.K_q:
                     return False  # Thoát game
+                elif event.key == pygame.K_m:
+                    # Đảm bảo nhạc đã dừng trước khi quay lại menu
+                    try:
+                        pygame.mixer.music.stop()
+                    except:
+                        pass
+                    main_menu()
 
 def win_screen():
     selecting = True
@@ -704,6 +866,7 @@ def win_screen():
 # Main game loop
 def run_game():
     global counter, count, flicker,player, ghosts, start_time, run, game_over
+    lives = 2
 
     # Reset variables
     counter = 0
@@ -737,10 +900,13 @@ def run_game():
 
         screen.fill("darkblue")
         draw_board()
-
+        
         # Player
         player.move()
         player.draw_player()
+
+       
+
 
         # Dots
         for dot in dots:
@@ -766,11 +932,22 @@ def run_game():
         # Time display
         duration = calculate_game_duration(start_time)
         display_duration(duration)
+        # Hiển thị điểm
+        display_score(score)
 
+        display_lives(lives)
         # Check collision with ghosts
         for ghost in ghosts:
             if check_collision(player, ghost):
-                game_over = True
+                lives -= 1  # Mất 1 mạng
+                if lives > -1:
+                    player.__init__()
+                    pygame.time.delay(500)  # Delay nhẹ để tránh double hit
+                    pause_screen(lives)  # Hiện pause screen trước khi chơi tiếp
+                else:
+                    game_over = True
+
+
 
         # Check ghost-to-ghost teleport
         for i in range(len(ghosts)):
@@ -805,9 +982,10 @@ def run_game():
                 pass
             display_game_over()
             save_longest_time(duration)
+            if score > highest_score:
+                save_highest_score(score)
 
-
-            if game_over_menu():
+            if game_over_menu(score, duration):
                 run_game()  # Restart the game cleanly
             run = False
 
