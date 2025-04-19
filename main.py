@@ -148,12 +148,89 @@ class Ghost:
         screen.blit(self.image, (self.x, self.y))
 
 
+def display_statistics():
+        stat_font = pygame.font.Font("freesansbold.ttf", 24)
+        ghosts_names = ["Pink (DFS)", "Blue (BFS)", "Orange (UCS)", "Red (A*)"]
+        start_y = HEIGHT // 2 + 150
+
+        for i, ghost in enumerate(ghosts):
+            try:
+                text = f"{ghosts_names[i]} | Time: {round(ghost.search_time, 4)}s | Memory: {round(ghost.memory_usage, 2)}KB | Expanded: {ghost.expanded_nodes}"
+            except AttributeError:
+                text = f"{ghosts_names[i]} | No Data"
+            
+            stat_text = stat_font.render(text, True, "white")
+            screen.blit(stat_text, (WIDTH//2 - 400, start_y + i*30))
+
+
+
 class Pink_ghost(Ghost):
     def __init__(self):
         super().__init__("ghost_images/pink.png", 4)
 
     def set_initial_position(self):
         x = len(level[0]) // 2 + 2
+        y = len(level) // 2 - 2
+        self.x = x * self.num2 + (0.5 * self.num2) - 22
+        self.y = y * self.num1 + (0.5 * self.num1) - 22
+
+    def calculate_path_to_player(self):
+        ghost_grid_x = int((self.x + 22) // self.num2)
+        ghost_grid_y = int((self.y + 22) // self.num1)
+        player_grid_x = int((player.x + 22) // self.num2)
+        player_grid_y = int((player.y + 22) // self.num1)
+
+        self.path = self.find_path(
+            (ghost_grid_x, ghost_grid_y), (player_grid_x, player_grid_y)
+        )
+
+    def find_path(self, start, goal):
+        tracemalloc.start()
+        start_time = time.time()
+
+        path, expanded = self.dfs(start, goal)
+
+        end_time = time.time()
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        self.search_time = end_time - start_time
+        self.memory_usage = peak / 1024  # in KB
+        self.expanded_nodes = expanded
+
+        return path
+    
+    def dfs(self, start, goal):
+        stack = [(start, [])]
+        visited = set()
+        expanded = 0
+
+        while stack:
+            (x, y), path = stack.pop()
+            expanded += 1
+
+            if (x, y) == goal:
+                return path + [(x, y)], expanded
+
+            if (x, y) in visited:
+                continue
+            visited.add((x, y))
+
+            for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < len(level[0]) and 0 <= ny < len(level):
+                    if level[ny][nx] in [1, 2, 9, 10]:
+                        stack.append(((nx, ny), path + [(x, y)]))
+
+        return [], expanded
+
+
+class Blue_ghost(Ghost):
+    def __init__(self):
+        super().__init__("ghost_images/blue.png", 3)
+
+    def set_initial_position(self):
+        x = len(level[0]) // 2 - 3
         y = len(level) // 2 - 2
         self.x = x * self.num2 + (0.5 * self.num2) - 22
         self.y = y * self.num1 + (0.5 * self.num1) - 22
@@ -183,6 +260,8 @@ class Pink_ghost(Ghost):
         self.expanded_nodes = expanded
 
         return path
+
+    
     def bfs(self, start, goal):
             queue = deque([(start, [])])
             visited = set()
@@ -205,77 +284,7 @@ class Pink_ghost(Ghost):
                         if level[ny][nx] in [1, 2, 9, 10]:
                             queue.append(((nx, ny), path + [(x, y)]))
 
-            return [], expanded
-
-
-def display_statistics():
-        stat_font = pygame.font.Font("freesansbold.ttf", 24)
-        ghosts_names = ["Pink (BFS)", "Blue (DFS)", "Orange (UCS)", "Red (A*)"]
-        start_y = HEIGHT // 2 + 150
-
-        for i, ghost in enumerate(ghosts):
-            try:
-                text = f"{ghosts_names[i]} | Time: {round(ghost.search_time, 4)}s | Memory: {round(ghost.memory_usage, 2)}KB | Expanded: {ghost.expanded_nodes}"
-            except AttributeError:
-                text = f"{ghosts_names[i]} | No Data"
-            
-            stat_text = stat_font.render(text, True, "white")
-            screen.blit(stat_text, (WIDTH//2 - 400, start_y + i*30))
-
-
-    
-
-    
-
-
-class Blue_ghost(Ghost):
-    def __init__(self):
-        super().__init__("ghost_images/blue.png", 3)
-
-    def set_initial_position(self):
-        x = len(level[0]) // 2 - 3
-        y = len(level) // 2 - 2
-        self.x = x * self.num2 + (0.5 * self.num2) - 22
-        self.y = y * self.num1 + (0.5 * self.num1) - 22
-
-    def calculate_path_to_player(self):
-        ghost_grid_x = int((self.x + 22) // self.num2)
-        ghost_grid_y = int((self.y + 22) // self.num1)
-        player_grid_x = int((player.x + 22) // self.num2)
-        player_grid_y = int((player.y + 22) // self.num1)
-
-        self.path = self.find_path(
-            (ghost_grid_x, ghost_grid_y), (player_grid_x, player_grid_y)
-        )
-
-    def find_path(self, start, goal):
-        return self.dfs(start, goal)
-
-    def dfs(self, start, goal):
-        stack = [(start, [])]
-        visited = set()
-
-        while stack:
-            (x, y), path = stack.pop()
-
-            if (x, y) == goal:
-                return path + [(x, y)]
-
-            if (x, y) in visited:
-                continue
-            visited.add((x, y))
-
-            for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < len(level[0]) and 0 <= ny < len(level):
-                    if (
-                        level[ny][nx] == 1
-                        or level[ny][nx] == 2
-                        or level[ny][nx] == 9
-                        or level[ny][nx] == 10
-                    ):
-                        stack.append(((nx, ny), path + [(x, y)]))
-        return []
+            return [], expanded 
 
 
 class Orange_ghost(Ghost):
@@ -299,17 +308,32 @@ class Orange_ghost(Ghost):
         )
 
     def find_path(self, start, goal):
-        return self.ucs(start, goal)
+        tracemalloc.start()
+        start_time = time.time()
+
+        path, expanded = self.ucs(start, goal)
+
+        end_time = time.time()
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        self.search_time = end_time - start_time
+        self.memory_usage = peak / 1024  # KB
+        self.expanded_nodes = expanded
+
+        return path
 
     def ucs(self, start, goal):
         queue = [(0, start, [])]
         visited = set()
+        expanded = 0
 
         while queue:
             cost, (x, y), path = heapq.heappop(queue)
+            expanded += 1
 
             if (x, y) == goal:
-                return path + [(x, y)]
+                return path + [(x, y)], expanded
 
             if (x, y) in visited:
                 continue
@@ -317,30 +341,25 @@ class Orange_ghost(Ghost):
 
             move = [
                 (0, -1, 3),  # up
-                (0, 1, 1),  # down
+                (0, 1, 1),   # down
                 (-1, 0, 2),  # left
-                (1, 0, 2),  # right
+                (1, 0, 2),   # right
             ]
 
             for dx, dy, move_cost in move:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < len(level[0]) and 0 <= ny < len(level):
-                    if (
-                        level[ny][nx] == 1
-                        or level[ny][nx] == 2
-                        or level[ny][nx] == 10
-                        or level[ny][nx] == 9
-                    ):
+                    if level[ny][nx] in [1, 2, 9, 10]:
                         heapq.heappush(
                             queue, (cost + move_cost, (nx, ny), path + [(x, y)])
                         )
 
-        return []
+        return [], expanded
 
 
 class RedGhost(Ghost):
     def __init__(self):
-        super().__init__("ghost_images/red.png", 3)  # Tốc độ có thể điều chỉnh
+        super().__init__("ghost_images/red.png", 3)
 
     def set_initial_position(self):
         x = len(level[0]) // 2 + 2
@@ -354,50 +373,58 @@ class RedGhost(Ghost):
         player_grid_x = int((player.x + 22) // self.num2)
         player_grid_y = int((player.y + 22) // self.num1)
 
-        self.path = self.a_star(
+        self.path = self.find_path(
             (ghost_grid_x, ghost_grid_y), (player_grid_x, player_grid_y)
         )
 
     def heuristic(self, a, b):
-        # Sử dụng khoảng cách Manhattan làm heuristic
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
-    def a_star(self, start, goal):
-        open_set = []
-        heapq.heappush(open_set, (0, start))
-        came_from = {}
+    def find_path(self, start, goal):
+        tracemalloc.start()
+        start_time = time.time()
+
+        path, expanded = self.astar(start, goal)
+
+        end_time = time.time()
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        self.search_time = end_time - start_time
+        self.memory_usage = peak / 1024
+        self.expanded_nodes = expanded
+
+        return path
+
+    def astar(self, start, goal):
+        open_set = [(0, start, [])]
         g_score = {start: 0}
-        f_score = {start: self.heuristic(start, goal)}
+        visited = set()
+        expanded = 0
 
         while open_set:
-            _, current = heapq.heappop(open_set)
+            cost, current, path = heapq.heappop(open_set)
+            expanded += 1
 
             if current == goal:
-                path = []
-                while current in came_from:
-                    path.append(current)
-                    current = came_from[current]
-                path.reverse()
-                return path
+                return path + [current], expanded
+
+            if current in visited:
+                continue
+            visited.add(current)
 
             for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                neighbor = (current[0] + dx, current[1] + dy)
+                nx, ny = current[0] + dx, current[1] + dy
+                neighbor = (nx, ny)
+                if 0 <= nx < len(level[0]) and 0 <= ny < len(level):
+                    if level[ny][nx] in [1, 2, 9, 10]:
+                        tentative_g = g_score[current] + 1
+                        if tentative_g < g_score.get(neighbor, float("inf")):
+                            g_score[neighbor] = tentative_g
+                            f_score = tentative_g + self.heuristic(neighbor, goal)
+                            heapq.heappush(open_set, (f_score, neighbor, path + [current]))
 
-                if 0 <= neighbor[0] < len(level[0]) and 0 <= neighbor[1] < len(level):
-                    if level[neighbor[1]][neighbor[0]] not in [1, 2, 9, 10]:
-                        continue
-
-                    tentative_g_score = g_score[current] + 1
-
-                    if neighbor not in g_score or tentative_g_score < g_score[neighbor]:
-                        came_from[neighbor] = current
-                        g_score[neighbor] = tentative_g_score
-                        f_score[neighbor] = tentative_g_score + self.heuristic(
-                            neighbor, goal
-                        )
-                        heapq.heappush(open_set, (f_score[neighbor], neighbor))
-
-        return []
+        return [], expanded
 
 
 class Player:
