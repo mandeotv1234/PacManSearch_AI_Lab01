@@ -13,6 +13,9 @@ move_sound = pygame.mixer.Sound("sound/tick.mp3")
 
 WIDTH = 900
 HEIGHT = 950
+TILE_WIDTH = WIDTH // 30
+TILE_HEIGHT = (HEIGHT - 50) // 32
+
 screen = pygame.display.set_mode([WIDTH, HEIGHT])
 timer = pygame.time.Clock()
 pygame.display.set_caption("Pacman")
@@ -58,6 +61,26 @@ for i in range(1, 5):
 def calculate_game_duration(start_time):
     return time.time() - start_time
 
+
+# ====== DOT CLASS ======
+class Dot:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x - 2, y - 2, 4, 4)
+        self.eaten = False
+
+    def draw(self):
+        if not self.eaten:
+            pygame.draw.circle(screen, (255, 255, 0), self.rect.center, 3)
+
+dots = []
+
+def create_dots():
+    for y in range(len(level)):
+        for x in range(len(level[0])):
+            if level[y][x] in [1, 2]:
+                pos_x = x * TILE_WIDTH + TILE_WIDTH // 2
+                pos_y = y * TILE_HEIGHT + TILE_HEIGHT // 2
+                dots.append(Dot(pos_x, pos_y))
 
 class Ghost:
     def __init__(self, image_path, speed):
@@ -453,6 +476,20 @@ class Player:
         elif self.direction == "down":
             screen.blit(player_images_down[counter // 5], (self.x, self.y))
 
+    @property
+    def rect(self):
+        return pygame.Rect(self.x, self.y, 45, 45)
+
+    def draw(self):
+        if self.direction == "right":
+            screen.blit(player_images_right[counter // 5], (self.x, self.y))
+        elif self.direction == "left":
+            screen.blit(player_images_left[counter // 5], (self.x, self.y))
+        elif self.direction == "up":
+            screen.blit(player_images_up[counter // 5], (self.x, self.y))
+        elif self.direction == "down":
+            screen.blit(player_images_down[counter // 5], (self.x, self.y))
+
     def move(self):
         if self.direction == "up":
             self.y -= self.speed
@@ -488,80 +525,10 @@ class Player:
 
 
 def draw_board():
-    num1 = (HEIGHT - 50) // 32
-    num2 = WIDTH // 30
     for i in range(len(level)):
         for j in range(len(level[i])):
-            if level[i][j] == 3:
-                pygame.draw.line(
-                    screen,
-                    color,
-                    (j * num2 + (0.5 * num2), i * num1),
-                    (j * num2 + (0.5 * num2), i * num1 + num1),
-                    3,
-                )
-            if level[i][j] == 4:
-                pygame.draw.line(
-                    screen,
-                    color,
-                    (j * num2, i * num1 + (0.5 * num1)),
-                    (j * num2 + num2, i * num1 + (0.5 * num1)),
-                    3,
-                )
-            if level[i][j] == 5:
-                pygame.draw.arc(
-                    screen,
-                    color,
-                    [
-                        (j * num2 - (num2 * 0.4)) - 2,
-                        (i * num1 + (0.5 * num1)),
-                        num2,
-                        num1,
-                    ],
-                    0,
-                    PI / 2,
-                    3,
-                )
-            if level[i][j] == 6:
-                pygame.draw.arc(
-                    screen,
-                    color,
-                    [(j * num2 + (num2 * 0.5)), (i * num1 + (0.5 * num1)), num2, num1],
-                    PI / 2,
-                    PI,
-                    3,
-                )
-            if level[i][j] == 7:
-                pygame.draw.arc(
-                    screen,
-                    color,
-                    [(j * num2 + (num2 * 0.5)), (i * num1 - (0.4 * num1)), num2, num1],
-                    PI,
-                    3 * PI / 2,
-                    3,
-                )
-            if level[i][j] == 8:
-                pygame.draw.arc(
-                    screen,
-                    color,
-                    [
-                        (j * num2 - (num2 * 0.4)) - 2,
-                        (i * num1 - (0.4 * num1)),
-                        num2,
-                        num1,
-                    ],
-                    3 * PI / 2,
-                    2 * PI,
-                    3,
-                )
-            if level[i][j] == 9:
-                pygame.draw.line(
-                    screen,
-                    "white",
-                    (j * num2, i * num1 + (0.5 * num1)),
-                    (j * num2 + num2, i * num1 + (0.5 * num1)),
-                    3,
-                )
+            if level[i][j] in [3, 4, 5, 6, 7, 8, 9]:
+                pygame.draw.rect(screen, (0, 0, 255), (j*TILE_WIDTH, i*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT), 1)
 
 
 def check_collision(player, ghost):
@@ -624,6 +591,16 @@ def load_longest_time():
         return 0
 
 
+def save_highest_score(score):
+    with open("highest_score.txt", "w") as f:
+        f.write(str(score))
+
+def load_highest_score():
+    try:
+        with open("highest_score.txt", "r") as f:
+            return int(f.read())
+    except:
+        return 0
 def main_menu():
     menu_font = pygame.font.Font("freesansbold.ttf", 64)
     option_font = pygame.font.Font("freesansbold.ttf", 36)
@@ -696,6 +673,29 @@ def game_over_menu():
                 elif event.key == pygame.K_q:
                     return False  # Thoát game
 
+def win_screen():
+    selecting = True
+    while selecting:
+        screen.fill("black")
+        win_text = pygame.font.Font(None, 80).render("YOU WIN!", True, "yellow")
+        restart = pygame.font.Font(None, 50).render("Press R to Restart", True, "white")
+        quit_game = pygame.font.Font(None, 50).render("Press Q to Quit", True, "white")
+        screen.blit(win_text, (WIDTH//2 - 150, HEIGHT//2 - 100))
+        screen.blit(restart, (WIDTH//2 - 180, HEIGHT//2 + 20))
+        screen.blit(quit_game, (WIDTH//2 - 150, HEIGHT//2 + 80))
+
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    run_game()
+                    selecting = False
+                if event.key == pygame.K_q:
+                    pygame.quit()
+                    exit()
 
 # Initialize game objects
 # player = Player()
@@ -714,7 +714,9 @@ def run_game():
     start_time = time.time()
     run = True
     game_over = False
-
+    create_dots()
+    score = 0
+    highest_score = load_highest_score()
      # Phát nhạc nền
     try:
         pygame.mixer.music.play(-1)  # -1 để lặp vô hạn
@@ -739,6 +741,13 @@ def run_game():
         # Player
         player.move()
         player.draw_player()
+
+        # Dots
+        for dot in dots:
+            dot.draw()
+            if not dot.eaten and player.rect.colliderect(dot.rect):
+                dot.eaten = True
+                score += 1
 
         # Ghosts
         for ghost in ghosts:
@@ -797,9 +806,19 @@ def run_game():
             display_game_over()
             save_longest_time(duration)
 
+
             if game_over_menu():
                 run_game()  # Restart the game cleanly
             run = False
+
+             # Check win
+        if all(dot.eaten for dot in dots):
+            pygame.mixer.music.stop()
+            if score > highest_score:
+                save_highest_score(score)
+            save_longest_time(duration)
+            win_screen()
+            running = False
 
         pygame.display.flip()
       # Đảm bảo dừng nhạc khi kết thúc game
@@ -812,4 +831,3 @@ if __name__ == "__main__":
     main_menu()
     run_game()
     pygame.quit()
-
