@@ -5,7 +5,8 @@ import pygame
 import math
 import random
 import heapq
-
+import tracemalloc
+import time
 pygame.init()
 pygame.mixer.init()  # Khởi tạo mixer cho âm thanh
 move_sound = pygame.mixer.Sound("sound/tick.mp3")
@@ -168,34 +169,63 @@ class Pink_ghost(Ghost):
         )
 
     def find_path(self, start, goal):
-        return self.bfs(start, goal)
+        tracemalloc.start()
+        start_time = time.time()
 
+        path, expanded = self.bfs(start, goal)
+
+        end_time = time.time()
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        self.search_time = end_time - start_time
+        self.memory_usage = peak / 1024  # in KB
+        self.expanded_nodes = expanded
+
+        return path
     def bfs(self, start, goal):
-        queue = deque([(start, [])])
-        visited = set()
+            queue = deque([(start, [])])
+            visited = set()
+            expanded = 0
 
-        while queue:
-            (x, y), path = queue.popleft()
+            while queue:
+                (x, y), path = queue.popleft()
+                expanded += 1
 
-            if (x, y) == goal:
-                return path + [(x, y)]
+                if (x, y) == goal:
+                    return path + [(x, y)], expanded
 
-            if (x, y) in visited:
-                continue
-            visited.add((x, y))
+                if (x, y) in visited:
+                    continue
+                visited.add((x, y))
 
-            for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < len(level[0]) and 0 <= ny < len(level):
-                    if (
-                        level[ny][nx] == 1
-                        or level[ny][nx] == 2
-                        or level[ny][nx] == 9
-                        or level[ny][nx] == 10
-                    ):
-                        queue.append(((nx, ny), path + [(x, y)]))
+                for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < len(level[0]) and 0 <= ny < len(level):
+                        if level[ny][nx] in [1, 2, 9, 10]:
+                            queue.append(((nx, ny), path + [(x, y)]))
 
-        return []
+            return [], expanded
+
+
+def display_statistics():
+        stat_font = pygame.font.Font("freesansbold.ttf", 24)
+        ghosts_names = ["Pink (BFS)", "Blue (DFS)", "Orange (UCS)", "Red (A*)"]
+        start_y = HEIGHT // 2 + 150
+
+        for i, ghost in enumerate(ghosts):
+            try:
+                text = f"{ghosts_names[i]} | Time: {round(ghost.search_time, 4)}s | Memory: {round(ghost.memory_usage, 2)}KB | Expanded: {ghost.expanded_nodes}"
+            except AttributeError:
+                text = f"{ghosts_names[i]} | No Data"
+            
+            stat_text = stat_font.render(text, True, "white")
+            screen.blit(stat_text, (WIDTH//2 - 400, start_y + i*30))
+
+
+    
+
+    
 
 
 class Blue_ghost(Ghost):
@@ -527,10 +557,13 @@ def display_game_over():
 
 
 def display_duration(duration):
-    duration_text = font.render(
-        f"Duration: {round(float(duration), 2)} seconds", True, "white"
+    time_font = pygame.font.Font("freesansbold.ttf", 60)
+    duration_text = time_font.render(
+        f"Time: {round(float(duration), 2)}s", True, "red"
     )
-    screen.blit(duration_text, (10, 10))
+    screen.blit(duration_text, (WIDTH//2 - 100, 50))  # Center top
+
+
 
 
 def check_ghost_collision(ghost1, ghost2):
@@ -545,13 +578,66 @@ def check_ghost_collision(ghost1, ghost2):
         and level[ghost1_grid_y][ghost1_grid_x] in [1, 2, 9]
     )
 
+def save_longest_time(duration):
+    try:
+        with open("longest_time.txt", "r") as file:
+            longest = float(file.read())
+    except:
+        longest = 0
+
+    if duration > longest:
+        with open("longest_time.txt", "w") as file:
+            file.write(str(duration))
+
+def load_longest_time():
+    try:
+        with open("longest_time.txt", "r") as file:
+            return float(file.read())
+    except:
+        return 0
+
+
+def main_menu():
+    menu_font = pygame.font.Font("freesansbold.ttf", 64)
+    option_font = pygame.font.Font("freesansbold.ttf", 36)
+
+    selecting = True
+    while selecting:
+        screen.fill("darkblue")
+
+        title_text = menu_font.render("PACMAN GAME", True, "yellow")
+        start_text = option_font.render("Press S to Start", True, "white")
+        quit_text = option_font.render("Press Q to Quit", True, "white")
+        longest_time = load_longest_time()
+        longest_text = option_font.render(f"Longest Time: {round(longest_time,2)}s", True, "white")
+
+        screen.blit(title_text, (WIDTH // 2 - 200, HEIGHT // 2 - 200))
+        screen.blit(start_text, (WIDTH // 2 - 150, HEIGHT // 2))
+        screen.blit(quit_text, (WIDTH // 2 - 150, HEIGHT // 2 + 60))
+        screen.blit(longest_text, (WIDTH // 2 - 200, HEIGHT // 2 + 140))
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_s:
+                    selecting = False  # Start game
+                elif event.key == pygame.K_q:
+                    pygame.quit()
+                    exit()
+
+
 def game_over_menu():
     menu_font = pygame.font.Font("freesansbold.ttf", 64)
     option_font = pygame.font.Font("freesansbold.ttf", 36)
 
     selecting = True
     while selecting:
-        screen.fill("black")
+        screen.fill("darkblue")
 
         # Hiển thị chữ GAME OVER
         game_over_text = menu_font.render("GAME OVER", True, "red")
@@ -562,6 +648,7 @@ def game_over_menu():
         quit_text = option_font.render("Press Q to Quit", True, "white")
         screen.blit(play_again_text, (WIDTH // 2 - 220, HEIGHT // 2))
         screen.blit(quit_text, (WIDTH // 2 - 170, HEIGHT // 2 + 60))
+        display_statistics()
 
         pygame.display.flip()
 
@@ -619,7 +706,7 @@ def run_game():
             counter = 0
             flicker = True
 
-        screen.fill("black")
+        screen.fill("darkblue")
         draw_board()
 
         # Player
@@ -672,7 +759,7 @@ def run_game():
                 elif event.key == pygame.K_d:
                     player.direction = "right"
                     move_sound.play()
-
+        
 
         if game_over:
              # Dừng nhạc khi game over
@@ -681,6 +768,8 @@ def run_game():
             except:
                 pass
             display_game_over()
+            save_longest_time(duration)
+
             if game_over_menu():
                 run_game()  # Restart the game cleanly
             run = False
@@ -693,5 +782,7 @@ def run_game():
         pass
 
 if __name__ == "__main__":
+    main_menu()
     run_game()
     pygame.quit()
+
